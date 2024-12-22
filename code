@@ -1,0 +1,91 @@
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Create folders
+os.makedirs("input", exist_ok=True) # Input folder
+os.makedirs("output", exist_ok=True) # Filtered data folder
+os.makedirs("images", exist_ok=True) # Graphics folder
+
+# Set the path to the CSV file with the input data
+input_file_path = "input/data_real.csv"
+if not os.path.exists(input_file_path):
+    print("Erreur : Veuillez placer votre fichier CSV dans le dossier 'input' et relancer le script.")
+    exit()
+
+# Ca permet de lire les données CSV avec le séparateur approprié (';')
+raw_data = pd.read_csv(input_file_path, sep=';')
+
+# This displays the columns available in the file to check their structure
+print("Colonnes disponibles dans le fichier :", raw_data.columns)
+
+# cleans column names to avoid errors due to spaces or invisible characters
+raw_data.columns = raw_data.columns.str.strip()
+
+# checks that all necessary columns are there
+required_columns = ['sample_type', 'experimental_day', 'counts_live_bacteria_per_wet_g', 'treatment', 'mouse_ID']
+missing_columns = [col for col in required_columns if col not in raw_data.columns]
+
+if missing_columns:
+    print(f"Erreur : Les colonnes suivantes sont manquantes dans le fichier : {missing_columns}")
+    exit()
+
+# Create line graph for samples
+# Filter data to get only samples of type "fecal"
+fecal_samples = raw_data[raw_data['sample_type'] == 'fecal']
+
+# This allows to save the filtered data for fecal samples in a CSV file
+fecal_samples.to_csv("output/fecal_samples.csv", index=False)
+
+# Create a line graph to see live bacteria in fecal samples
+plt.figure(figsize=(10, 6))
+sns.lineplot(
+    data=fecal_samples,
+    x="experimental_day",  # X axis: experimental day
+    y="counts_live_bacteria_per_wet_g",  # Y axis: log10 of the number of living bacteria
+    hue="treatment", # Differentiate between Placebo and Antibiotic groups
+    units="mouse_ID",  # Treat each mouse individually
+    estimator=None,
+    style="treatment"  # Differentiate line styles for each group
+)
+plt.title("Évolution des bactéries vivantes dans les échantillons fécaux")
+plt.xlabel("Jour expérimental")
+plt.ylabel("log10 (bactéries vivantes par gramme humide)")
+plt.yscale('log')  # Applies a logarithmic scale to the Y axis
+plt.legend(title='Traitement', labels=['Placebo', 'Antibiotique'])
+plt.tight_layout()
+plt.savefig("images/fecal_line_chart.png")  # Save the graph
+plt.close()
+
+# Create violin plots for "cecal" and "ileal" samples
+for sample_category in ['cecal', 'ileal']:
+    # Filter the data to get only the matching samples and for experimental day 0
+    category_samples = raw_data[(raw_data['sample_type'] == sample_category) & (raw_data['experimental_day'] == 0)]
+
+    # Checks if data is available for this sample type
+    if category_samples.empty:
+        print(f"Aucune donnée disponible pour '{sample_category}'.")
+        continue
+
+    # Save the filtered data to a CSV file
+    category_samples.to_csv(f"output/{sample_category}_samples.csv", index=False)
+
+    # Generate a violin plot to see the distribution of live bacteria
+    plt.figure(figsize=(8, 5))
+    sns.violinplot(
+        data=category_samples,
+        x='treatment', # X axis: type of treatment (Placebo or Antibiotic)
+        y='counts_live_bacteria_per_wet_g',  # Y axis: log10 of the number of living bacteria
+        density_norm='width'  # Adjust the width of the violins to reflect the density
+    )
+    plt.title(f"Bactéries vivantes dans les échantillons {sample_category.capitalize()}")
+    plt.xlabel("Traitement")
+    plt.ylabel("log10 (bactéries vivantes par gramme humide)")
+    plt.yscale('log')  # Apply a logarithmic scale to the Y axis
+    plt.tight_layout()
+    plt.savefig(f"images/{sample_category}_violin_plot.png")  # Save the graph
+    plt.close()
+
+# Display a confirmation message once it is finished
+print("Traitement terminé. Les fichiers de sortie sont dans 'output' et les graphiques dans 'images'.")
