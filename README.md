@@ -15,3 +15,5 @@ Violin graphs
 
 Limitations:
 If there is no data for a sample type (cecal or ileal), graphs will not be generated.
+
+Daniel Bonfils
